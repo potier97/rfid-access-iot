@@ -19,8 +19,8 @@ esp.osdebug(None)
 import gc
 gc.collect()
 
-ssid = 'TIGO-ANZOLA'
-password = 'La Wikipedia'
+ssid = 'XXXX'
+password = 'XXXX'
 mqtt_server = '192.168.1.24'
 mqtt_user = ''
 mqtt_pass = ''
