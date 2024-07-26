@@ -35,9 +35,9 @@ Este proyecto tiene como objetivo controlar el acceso a una puerta utilizando un
 3. [Instalación del Broker Mosquitto](#instalación-del-broker-mosquitto)
 4. [Ampy - Transferencia de Archivos](#ampy---transferencia-de-archivos)
 5. [Configuración Inicial del ESP8266](#configuración-inicial-del-esp8266)
-6. [Control del Servo mediante MQTT](#control-del-servo-mediante-mqtt)
 7. [Migración a AWS IoT Core](#migración-a-aws-iot-core)
 8. [Contribuciones](#contribuciones)
+9. [Autor](#autor)
 9. [Licencia](#licencia)
 
 
@@ -164,7 +164,7 @@ ampy --port com6 rm main.py
 
 El desarrollo d este proyecto se realiza de acuerdo a este otro proyecto: [ESP8266-MicroPython](https://bhave.sh/micropython-mqtt/).
 
-### Esp8266 + RPI (Local)
+### Esp8266 + RPI (Local) - Control Puerta
 
 Este ejemplo consiste en la publicación de mensajes desde una ESP8266 que se conecta a un broker MQTT en una Raspberry Pi. Este captura los posible mensjaes a los que está suscrito y actúa en consecuencia.
 
@@ -262,3 +262,171 @@ if __name__ == '__main__':
     door_controller = Door(mqtt_server, client_id, thing_name)
     door_controller.listen()
 ```
+
+### Esp8266 + RPI (Local) - Control RFID
+
+Este sección muestra cómo utilizar un lector RFID para leer tarjetas y enviar la información al servidor MQTT. El sistema está diseñado para detectar tarjetas RFID y publicar el UID de la tarjeta en un tema MQTT. (Ejemplo Simple), este lo puede encontrar en el archivo `scripts/main_read_rfid.py`.
+
+ > El uso de RFID se basa en el proyecto de [Micropython RFID](https://github.com/cefn/micropython-mfrc522/blob/master/examples/read.py)
+
+El código inicializa el LED y configura los pines para el lector RFID.
+
+```python
+from machine import Pin, SoftSPI, unique_id
+from time import sleep
+from ubinascii import hexlify
+from umqtt.simple import MQTTClient
+import mfrc522
+import ujson
+
+# Inicializa el LED
+led = Pin(16, Pin.OUT)
+
+# Configuración del lector RFID
+sck = Pin(14, Pin.OUT)
+mosi = Pin(13, Pin.OUT)
+miso = Pin(12, Pin.IN)
+
+# Configuración del pin de interrupción
+print("Escanea una tarjeta RFID...")
+```
+
+#### Configuración del Cliente MQTT
+Se configura el cliente MQTT para conectarse al servidor y definir el tema donde se publicarán los mensajes.
+
+```python	
+# Configuración del cliente MQTT
+mqtt_server = 'BROKER_IP'
+client_id = hexlify(unique_id())
+topic_pub = 'thing/rfid/open'
+
+client = MQTTClient(client_id, mqtt_server)
+client.connect()
+```
+
+#### Lectura de Tarjetas RFID
+
+Se configura el lector RFID y se define la función read_rfid para leer las tarjetas y obtener el UID.
+
+Cuando se detecta una tarjeta, el código convierte el UID a formato hexadecimal y crea un mensaje JSON. Este mensaje se publica en el tema thing/rfid/open.
+
+```python
+spi = SoftSPI(baudrate=100000, polarity=0, phase=0, sck=sck, mosi=mosi, miso=miso)
+spi.init()
+rdr = mfrc522.MFRC522(spi, gpioRst=5, gpioCs=4)
+
+# Función para leer la tarjeta y obtener el UID
+def read_rfid():
+  while True:
+    (stat, tag_type) = rdr.request(rdr.REQIDL)
+    if stat == rdr.OK:
+      (stat, uid) = rdr.anticoll()
+      if stat == rdr.OK:
+        print("Tarjeta detectada!")
+        uid_hex = ''.join(['{:02X}'.format(x) for x in uid])
+        # Crear el mensaje JSON
+        message = ujson.dumps({
+            "type": "0x%02x" % tag_type,
+            "uid": uid_hex
+        })
+        # Publicar el mensaje en el tema MQTT
+        client.publish("thing/rfid/open", message)
+        print("Mensaje publicado:", message)
+        # Enciende el LED para indicar que se ha leído la tarjeta
+        led.value(1)
+        sleep(1)
+        led.value(0)
+
+# Ejecutar la lectura
+read_rfid()
+```
+
+Ejemplo de implementación de la lectura de tarjetas RFID.
+
+ <br>
+<p align="center" >
+<a href="http://nipoanz.com/" target="blank">
+<img src="./assets/image-4.png" alt="image" />
+</a>
+</p>
+
+### Implementación de la Lógica de Control de Acceso mediante Tarjetas de RFID
+
+Este apartado consiste en la configuración de las esp8266 para extender la lógica anterior en los controles primarios de acceso mediante los siguientes publicaciones sobre el broker MQTT, cabe agregar que la comunicación de este dispositivo se realiza en doble vía, es decir, este nodo se suscribe a unos topics para actualizar el estado del lector, y publica en otros para enviar la información de las tarjetas RFID que se detectan.
+
+### Comandos MQTT - Publicaciones
+ - thing/rfid/open: Envia el UID y tipo de la tarjeta RFID para soliciar el acceso.
+ - thing/rfid/update: Envia los datos de las tarjetas RFID para asociar a un usuario nuevo o actualizar la información de un usuario existente.
+ - thing/rfid/remove: Envio de la información de la tarjeta RFID para eliminarla de la lista de permitidos y desasoaciarla de un usuario.
+
+### Comandos MQTT - Suscripciones
+ - thing/rfid/status: Actualiza el estado del lector RFID `locked` - `ready` - `remove` - `update`.
+
+### Ejemplo - Estado update - Agregar Tarjeta
+
+En este ejemplo se agrega una tarjeta RFID a la lista de permitidos, para ello se envía la información de la tarjeta al broker MQTT. Es recibido por la suscripción `thing/rfid/update`
+
+
+> Para ejemplos practicos se agrega el UID de la tarjeta en memoria del dispositivo RFID.
+
+
+<br>
+<p align="center" >
+<a href="http://nipoanz.com/" target="blank">
+<img src="./assets/image-5.png" alt="image" />
+</a>
+</p>
+
+### Ejemplo - Estado ready - Abrir Puerta
+
+De acuerdo al ejemplo anterior, al tener un UID de una tarjeta guarda en memoria, se cambia el estado a `ready` para que el lector RFID envie el UID de la tarjeta y su tipo a la suscripción `thing/rfid/open` para solicitar el acceso.
+
+> Hay que tener por lo menos una tarjeta en memoria para que el sistema funcione, posteriormente el listado de aceptados persistirá en una base de datos en la Nube de AWS.
+
+<br>
+<p align="center" >
+<a href="http://nipoanz.com/" target="blank">
+<img src="./assets/image-7.png" alt="image" />
+</a>
+</p>
+
+### Ejemplo - Estado remove - Eliminar Tarjeta
+
+El estado del lector se debe cambiar a `remove` para remover accesos de la lista de permitidos.
+
+En este ejemplo se elimina una tarjeta RFID de la lista de permitidos, para ello se envía la información de la tarjeta en la publicación `thing/rfid/remove`
+
+<br>
+<p align="center" >
+<a href="http://nipoanz.com/" target="blank">
+<img src="./assets/image-8.png" alt="image" />
+</a>
+</p>
+
+
+### Ejemplo - Estado Bloqueado - No ejecuta acciones
+
+Cuando se cambia al estado `locked` el lector RFID no ejecuta ninguna acción, esto se puede utilizar para bloquear el acceso a la puerta.
+
+<br>
+<p align="center" >
+<a href="http://nipoanz.com/" target="blank">
+<img src="./assets/image-9.png" alt="image" />
+</a>
+</p>
+
+## Contribuciones
+
+1. Hacer un fork del repositorio.
+2. Crear una nueva rama (`git checkout -b feature-nueva-funcionalidad`).
+3. Hacer commit de los cambios (`git commit -am 'Agregar nueva funcionalidad'`).
+4. Hacer push a la rama (`git push origin feature-nueva-funcionalidad`).
+5. Crear un Pull Request.
+
+
+## Autor
+
+- [Nicolas Potier](https://github.com/potier97/)
+
+## Licencia
+Este proyecto está bajo la Licencia MIT.

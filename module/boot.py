@@ -26,7 +26,7 @@ def connect():
     station.connect(ssid, password)
     while not station.isconnected():
       pass
-  print('Connection successful - IP address:', station.ifconfig()[0])
+  print('IP address:', station.ifconfig()[0])
 
 #Connect to WiFi
 connect()
