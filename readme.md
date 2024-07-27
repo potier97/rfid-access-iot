@@ -32,6 +32,7 @@ Este proyecto tiene como objetivo controlar el acceso a una puerta utilizando un
 
 1. [Introducción](#introducción)
 2. [Requisitos](#requisitos)
+3. [Conexión Componentes](#conexión-componentes)
 3. [Instalación del Broker Mosquitto](#instalación-del-broker-mosquitto)
 4. [Ampy - Transferencia de Archivos](#ampy---transferencia-de-archivos)
 5. [Configuración Inicial del ESP8266](#configuración-inicial-del-esp8266)
@@ -58,6 +59,54 @@ Se hace uso de la libreria `umqtt.simple` para la comunicación MQTT en el ESP82
  - Tarjetas RFID
  - Mosquitto instalado en la Raspberry Pi
  - Conexión a Internet
+
+---
+## Conexión Componentes
+
+La conexión de los componentes se realiza para dos dispositivos, uno para el control del servo (Puerta) y otro para el lector RFID. La conexión se realiza de la siguiente manera:
+
+Tenga en cuenta los pines I/O de la ESP8266
+
+<br>
+<p align="center" >
+  <a href="http://nipoanz.com/" target="blank">
+  <img src="./assets/image-10.png" alt="image" />
+  </a>
+</p>
+
+### ESP8266 - Control Puerta (Un Dispositivo)
+
+<br>
+
+| ESP8266     | Servo |
+|-------------|-------|
+| D5 (GPIO14) | Signal|
+| NN          | VCC   |
+| GND         | GND   |
+
+
+ > El servo se alimenta con 5V de una fuente independiente y se comparte la tierra (GND) con el ESP8266.
+
+ Se conecta un led en el pin D0 (GPIO16) para indicar el estado del dispositivo.
+
+### ESP8266 - Lector RFID (Dos Dispositivos)
+
+<br>
+
+| ESP8266     | Lector RFID |
+|-------------|-------------|
+| D5 (GPIO14) | SCK         |
+| D7 (GPIO13) | MOSI        |
+| D6 (GPIO12) | MISO        |
+| D1 (GPIO5)  | RST         |
+| D2 (GPIO4)  | SDA         |
+| GND         | GND         |
+| 3V3         | 3.3V        |
+
+ > El lector RFID se alimenta con 3.3V y se comparte la tierra (GND) con el ESP8266.
+
+ Se conecta un led en el pin D0 (GPIO16) para indicar el estado del dispositivo.
+
 
 ---
 ## Instalación del Broker Mosquitto
