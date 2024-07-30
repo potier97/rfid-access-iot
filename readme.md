@@ -36,9 +36,9 @@ Este proyecto tiene como objetivo controlar el acceso a una puerta utilizando un
 3. [Instalación del Broker Mosquitto](#instalación-del-broker-mosquitto)
 4. [Ampy - Transferencia de Archivos](#ampy---transferencia-de-archivos)
 5. [Configuración Inicial del ESP8266](#configuración-inicial-del-esp8266)
-7. [Migración a AWS IoT Core](#migración-a-aws-iot-core)
-8. [Contribuciones](#contribuciones)
-9. [Autor](#autor)
+6. [Definición de Objetos - AWS IoT Core](#definición-de-objetos---aws-iot-core)
+7. [Contribuciones](#contribuciones)
+8. [Autor](#autor)
 9. [Licencia](#licencia)
 
 
@@ -464,6 +464,399 @@ Cuando se cambia al estado `locked` el lector RFID no ejecuta ninguna acción, e
 </a>
 </p>
 
+
+## Definición de Objetos - AWS IoT Core
+
+Para definir los objetos en AWS IoT Core, se debe crear un `Thing` y un `Policy` para el dispositivo. Para ello, se debe seguir los siguientes pasos:
+
+ > En este ejemplo se conecta una Raspberry Pi a AWS IoT Core y se ejecuta un [script](./rpi/mqtt_connect.py) en Python para publicar mensajes en distintos tópics de MQTT y nos conectamos al cliente MQTT de AWS para ejecutar pruebas.
+
+1. Ingresar a la consola de AWS y buscar el servicio `IoT Core`.
+2. En el menú lateral, seleccionar `All things` y hacer clic en `Object`.
+3. Hacer clic en `Create` y seleccionar `Create thing`.
+4. Ingresar el nombre del dispositivo, se selecciona en `Unnamed shadow (classic)` para asociar una sombra al dispositivo y hacer clic en `Next`.
+
+![alt text](./assets/image-11.png)
+
+![alt text](./assets/image-12.png)
+
+> En este ejemplo el dispositivo se llama `rpi_obj_test`.
+
+5. Seleccionar `Auto-generate a new certificate (recommended)` y hacer clic en `Next`.
+
+![alt text](./assets/image-13.png)
+
+6. Se asocian las politicas al dispositivo, en este caso se selecciona `test_rpi` y luego se hace clic en `Create thing`.
+
+![alt text](./assets/image-14.png)
+
+> Más adelante se definirá y  explicará la política `test_rpi` para el dispositivo.
+
+7. Se mostrará un modal para descargar los certificados y la clave privada del dispositivo. Descargar los archivos y hacer clic en `Done`.
+
+![alt text](./assets/image-15.png)
+
+ > Los archivos que serán utilizados son los terminados en:
+    - `....certificate.pem.crt`
+    - `....private.pem.key`
+    - `....AmazonRootCA1.pem`
+
+Listo el dispositivo ha sido creado en AWS IoT Core y este podrá ser visualizado en la consola de AWS, en la sección `Things`.
+
+![alt text](./assets/image-16.png)
+
+
+### Creación de una Política
+
+Para crear una política, se debe seguir los siguientes pasos:
+
+1. En el menú lateral, seleccionar `Secure` y hacer clic en `Policies`.
+2. Hacer clic en `Create` y seleccionar `Create a policy`.
+3. Ingresar el nombre de la política, se selecciona `Advanced mode` y se ingresa la siguiente política:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "iot:*",
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+La politica creada `test_rpi` y que se asocia al dispositivo `rpi_obj_test` tiene la siguiente definición:
+
+![alt text](./assets/image-17.png)
+
+Esta política permite al dispositivo realizar cualquier acción en AWS IoT Core, la puede ver [aqui](/rpi/policy.json) y está definida así:
+
+ > Cambie `<REGION>` por la región de su cuenta de AWS y `<ACOUNT_ID>` por el ID de su cuenta.
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "iot:Connect",
+      "Resource": "arn:aws:iot:<REGION>:<ACOUNT_ID>:client/MyRaspberryPi"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Publish",
+      "Resource": "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/$aws/things/MyRaspberryPi/shadow/update"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Subscribe",
+      "Resource": "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/$aws/things/MyRaspberryPi/shadow/update/delta"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Receive",
+      "Resource": "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/$aws/things/MyRaspberryPi/shadow/update/delta"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Publish",
+      "Resource": [
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/open",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/update",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/remove",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/one",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/two",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/three"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Receive",
+      "Resource": [
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/open",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/update",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/remove",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/one",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/two",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/three"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Subscribe",
+      "Resource": [
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/thing/rfid/open",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/thing/rfid/update",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/thing/rfid/remove",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/thing/rfid/one",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/thing/rfid/two",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/thing/rfid/three"
+      ]
+    }
+  ]
+}
+```
+
+La politica funciona de la siguiente manera:
+
+
+
+- Permite al dispositivo suscribirse al tópico `$aws/things/MyRaspberryPi/shadow/update/delta`.
+- Permite al dispositivo publicar mensajes en los tópicos `thing/rfid/open`, `thing/rfid/update`, `thing/rfid/remove`, `thing/rfid/one`, `thing/rfid/two` y `thing/rfid/three`.
+- Permite al dispositivo recibir mensajes en los tópicos `thing/rfid/open`, `thing/rfid/update`, `thing/rfid/remove`, `thing/rfid/one`, `thing/rfid/two` y `thing/rfid/three`.
+- Permite al dispositivo suscribirse a los tópicos `thing/rfid/open`, `thing/rfid/update`, `thing/rfid/remove`, `thing/rfid/one`, `thing/rfid/two` y `thing/rfid/three`.
+
+
+#### Conectar al Broker de AWS IoT
+Permite que el dispositivo MyRaspberryPi se conecte al broker de AWS IoT. Sin este permiso, el dispositivo no podrá establecer una conexión con el servicio de IoT.
+
+  - `iot:Connect`: Politica para conectar dispositivos al broker MQTT de AWS IoT.
+  - `Resource`: ARN del cliente MQTT de AWS IoT, este debe tener la estructura `arn:aws:iot:<REGION>:<ACOUNT_ID>:client/<CLIENT_ID>`, en el que client_id es el ID del dispositivo definido en la conexión del dispositivo, [Ejemplo](./rpi/mqtt_connect.py#14).
+
+  ```json
+  {
+    "Effect": "Allow",
+    "Action": "iot:Connect",
+    "Resource": "arn:aws:iot:<REGION>:<ACOUNT_ID>:client/MyRaspberryPi"
+  }
+  ```	
+
+#### Publicar Mensajes en un Tema Específico
+
+Permite que el dispositivo MyRaspberryPi publique mensajes en el tema específico para actualizar su estado (shadow). Este tema se utiliza para mantener el estado reportado del dispositivo.
+
+ - `iot:Publish`: Politica para publicar mensajes en un tópico específico.
+ 
+```json
+{
+"Effect": "Allow",
+"Action": "iot:Publish",
+"Resource": "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/$aws/things/MyRaspberryPi/shadow/update"
+}
+```	
+
+#### Suscribirse a un Tema para Recibir Actualizaciones del Shadow
+
+Permite que el dispositivo MyRaspberryPi se suscriba a las actualizaciones del shadow, específicamente al tema update/delta. Esto es esencial para recibir notificaciones cuando hay cambios en el shadow del dispositivo.
+
+ - `iot:Subscribe`: Politica para suscribirse a un tópico específico.
+
+```json
+{
+  "Effect": "Allow",
+  "Action": "iot:Subscribe",
+  "Resource": "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/$aws/things/MyRaspberryPi/shadow/update/delta"
+}
+```
+
+#### Recibir Mensajes de un Tema Específico
+
+Permite que el dispositivo MyRaspberryPi reciba mensajes del tema update/delta. Es complementario al permiso de suscripción y asegura que el dispositivo puede procesar los mensajes que llegan a ese tema.
+
+- `iot:Receive`: Politica para recibir mensajes de un tópico específico.
+
+```json
+{
+  "Effect": "Allow",
+  "Action": "iot:Receive",
+  "Resource": "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/$aws/things/MyRaspberryPi/shadow/update/delta"
+}
+```
+
+#### Publicar en Varias Temas
+
+Permite que el dispositivo publique mensajes en varios temas relacionados con RFID. Cada tema puede corresponder a diferentes eventos o datos asociados con el uso de RFID en el dispositivo.
+
+ - `iot:Publish`: Politica para publicar mensajes en varios tópicos.
+
+```json
+{
+  "Effect": "Allow",
+  "Action": "iot:Publish",
+  "Resource": [
+    "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/open",
+    "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/update",
+    "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/remove",
+    "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/one",
+    "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/two",
+    "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/three"
+  ]
+}
+```
+
+#### Recibir Mensajes de Varias Temas
+
+Permite que el dispositivo reciba mensajes de varios temas relacionados con RFID. Esto asegura que el dispositivo puede escuchar y procesar información proveniente de diferentes eventos RFID.
+
+ - `iot:Receive`: Politica para recibir mensajes de varios tópicos.
+
+```json
+{
+  "Effect": "Allow",
+  "Action": "iot:Receive",
+  "Resource": [
+    "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/open",
+    "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/update",
+    "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/remove",
+    "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/one",
+    "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/two",
+    "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/three"
+  ]
+}
+```
+
+#### Suscribirse a Varias Temas
+
+Permite que el dispositivo se suscriba a varios temas relacionados con RFID. La suscripción a estos temas asegura que el dispositivo puede recibir mensajes cuando ocurren eventos específicos relacionados con RFID.
+
+ - `iot:Subscribe`: Politica para suscribirse a varios tópicos.
+
+```json
+{
+  "Effect": "Allow",
+  "Action": "iot:Subscribe",
+  "Resource": [
+    "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/thing/rfid/open",
+    "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/thing/rfid/update",
+    "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/thing/rfid/remove",
+    "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/thing/rfid/one",
+    "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/thing/rfid/two",
+    "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/thing/rfid/three"
+  ]
+}
+```
+
+#### Publicación de Mensajes - AWS IoT Core Ejemplo
+
+Para publicar mensajes en AWS IoT Core, se hace uso del [Script](./rpi/mqtt_connect.py).
+
+La estructura del ejemplo se  organiza de la siguiente manera:
+
+![alt text](/assets/image-18.png)
+
+Se configura un entorno virtual y se instalan las dependencias necesarias, en este caso `paho-mqtt`.
+
+y se descargan y se copian los certificados y la clave privada del dispositivo en la misma carpeta del script `mqtt_connect.py`.
+
+
+El script se suscribe a los tópicos: 
+  - `thing/rfid/one`
+  - `thing/rfid/two`
+  - `thing/rfid/three`
+  - `$aws/things/MyRaspberryPi/shadow/update`
+
+
+El código se estructura de la siguiente manera:
+
+- Configuración de Certificados y Conexión
+
+Define las rutas a los certificados y el endpoint del broker de AWS IoT.
+
+```python
+ca_path = "AmazonRootCA1.pem"
+cert_path = "certificate.pem.crt"
+key_path = "private.pem.key"
+mqtt_endpoint = "<endpoint>.iot.<region>.amazonaws.com"
+client_id = "MyRaspberryPi"
+```
+
+- Temas para Publicación y Suscripción
+
+Especifica los temas para actualizar y recibir actualizaciones del shadow, así como otros temas para suscripción.
+
+```python
+shadow_update_topic = "$aws/things/MyRaspberryPi/shadow/update"
+shadow_delta_topic = "$aws/things/MyRaspberryPi/shadow/update/delta"
+topics_to_subscribe = [
+    "thing/rfid/one",
+    "thing/rfid/two",
+    "thing/rfid/three"
+]
+
+```
+
+- Callbacks de Conexión y Mensajes
+
+Configura funciones callback para manejar la conexión y la recepción de mensajes.
+
+```python
+def on_connect(client, userdata, flags, rc, properties=None):
+    print(f"Conectado con el código {rc}")
+    client.subscribe(shadow_delta_topic, qos=0)
+    for topic in topics_to_subscribe:
+        client.subscribe(topic, qos=0)
+
+def on_message(client, userdata, message):
+    print(f"Mensaje recibido en el tema {message.topic}: {message.payload.decode()}")
+```	
+
+- Configuración del Cliente MQTT y Conexión
+
+Configura el cliente MQTT con TLS/SSL y lo conecta al endpoint de AWS IoT.
+
+```python
+client = mqtt.Client(client_id=client_id, protocol=mqtt.MQTTv5)
+client.tls_set(ca_certs=ca_path, certfile=cert_path, keyfile=key_path, cert_reqs=ssl.CERT_REQUIRED, tls_version=2, ciphers=None)
+client.on_connect = on_connect
+client.on_message = on_message
+client.connect(mqtt_endpoint, port=8883)
+client.loop_start()
+```
+
+- Bucle Principal para Publicar Mensajes
+
+Publica mensajes en los temas definidos y actualiza el estado del shadow cada 5 segundos.
+
+```python
+try:
+    while True:
+        for topic in topics_to_subscribe:
+            message = {
+                "timestamp": time.time(),
+                "data": f"Este es un mensaje de prueba del topic: {topic}"
+            }
+            publish_message(topic, message)
+        state = {
+            "device": {
+                "status": "active",
+                "uptime": time.time()
+            }
+        }
+        update_shadow_state(state)
+        time.sleep(5)
+except KeyboardInterrupt:
+    client.loop_stop()
+    client.disconnect()
+```	
+
+
+#### Ejemplo Funcional
+
+Ejecución del Script en la Raspberry Pi.
+
+![alt text](/assets/image-19.png)
+
+Se ejecuta el script y se observa la conexión al broker de AWS IoT Core y la suscripción a los tópicos definidos.
+
+Se publican mensajes relacionados a los tópicos `thing/rfid/one`, `thing/rfid/two` y `thing/rfid/three` y  se escuchan al mismo tiempo.
+
+Mientras que en la consola se suscribe al tópico `thing/rfid/one` para visualizar los mensajes publicados.
+
+![alt text](/assets/image-20.png)
+
+Ahora se publica un mensaje desde la consola de AWS IoT Core en el tópico `thing/rfid/one` y se visualiza en la terminal de la Raspberry Pi.
+
+![alt text](/assets/image-21.png)
+
+Y se ve el mensaje publicado desde el script de la RPI
+
+![alt text](/assets/image-22.png)
+
+
+
+---
 ## Contribuciones
 
 1. Hacer un fork del repositorio.
