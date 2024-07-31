@@ -1,0 +1,61 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "iot:Connect",
+      "Resource": "arn:aws:iot:<REGION>:<ACOUNT_ID>:client/MyRaspberryPi"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Publish",
+      "Resource": "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/$aws/things/MyRaspberryPi/shadow/update"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Subscribe",
+      "Resource": "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/$aws/things/MyRaspberryPi/shadow/update/delta"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Receive",
+      "Resource": "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/$aws/things/MyRaspberryPi/shadow/update/delta"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Publish",
+      "Resource": [
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/open",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/update",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/remove",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/one",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/two",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/three"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Receive",
+      "Resource": [
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/open",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/update",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/remove",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/one",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/two",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/thing/rfid/three"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Subscribe",
+      "Resource": [
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/thing/rfid/open",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/thing/rfid/update",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/thing/rfid/remove",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/thing/rfid/one",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/thing/rfid/two",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/thing/rfid/three"
+      ]
+    }
+  ]
+}
