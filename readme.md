@@ -98,8 +98,8 @@ Tenga en cuenta los pines I/O de la ESP8266
 | D5 (GPIO14) | SCK         |
 | D7 (GPIO13) | MOSI        |
 | D6 (GPIO12) | MISO        |
-| D1 (GPIO5)  | RST         |
-| D2 (GPIO4)  | SDA         |
+| D2 (GPIO4)  | RST         |
+| D2 (GPIO5)  | SDA         |
 | GND         | GND         |
 | 3V3         | 3.3V        |
 
@@ -362,7 +362,7 @@ Cuando se detecta una tarjeta, el código convierte el UID a formato hexadecimal
 ```python
 spi = SoftSPI(baudrate=100000, polarity=0, phase=0, sck=sck, mosi=mosi, miso=miso)
 spi.init()
-rdr = mfrc522.MFRC522(spi, gpioRst=5, gpioCs=4)
+rdr = mfrc522.MFRC522(spi, gpioRst=4, gpioCs=5)
 
 # Función para leer la tarjeta y obtener el UID
 def read_rfid():

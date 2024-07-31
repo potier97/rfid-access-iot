@@ -31,7 +31,7 @@ class Rfid:
     # Configuración con lector RFID
     self.spi = SoftSPI(baudrate=100000, polarity=0, phase=0, sck=self.sck, mosi=self.mosi, miso=self.miso)
     self.spi.init()
-    self.rdr = mfrc522.MFRC522(self.spi, gpioRst=5, gpioCs=4)
+    self.rdr = mfrc522.MFRC522(self.spi, gpioRst=4, gpioCs=5)
     # Configuración de los temas MQTT - Suscripcion
     self.topics = {
       "status": f"{thing_name}/rfid/status".encode(),

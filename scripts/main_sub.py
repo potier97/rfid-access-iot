@@ -8,5 +8,7 @@ if __name__ == '__main__':
   mqtt_server = '192.168.1.24'
   # Cambiarlo por el nombre del dispositivo desplegado
   thing_name = 'thing'
+  # Se cambia al pin 13 -poder defecto es 14 
+  #servo_pin = 13 # D7 
   door_controller = Door(mqtt_server, client_id, thing_name)
   door_controller.listen()
