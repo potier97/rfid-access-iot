@@ -6,6 +6,9 @@
 
 Este proyecto tiene como objetivo controlar el acceso a una puerta utilizando un sistema RFID, un ESP8266 y una arquitectura en la nube a través de AWS IoT Core. Inicialmente, el proyecto se configura para conectar con un broker MQTT (Mosquitto) en una Raspberry Pi. Posteriormente, se implementará en la nube de AWS.
 
+Este proyecto está inspirado la siguiente publicación de AWS [Aquí](https://aws.amazon.com/es/blogs/iot/using-micropython-to-get-started-with-aws-iot-core/).
+
+
 ## Instalar
 1. Clonar el repositorio:
     ```sh
@@ -37,9 +40,10 @@ Este proyecto tiene como objetivo controlar el acceso a una puerta utilizando un
 4. [Ampy - Transferencia de Archivos](#ampy---transferencia-de-archivos)
 5. [Configuración Inicial del ESP8266](#configuración-inicial-del-esp8266)
 6. [Definición de Objetos - AWS IoT Core](#definición-de-objetos---aws-iot-core)
-7. [Contribuciones](#contribuciones)
-8. [Autor](#autor)
-9. [Licencia](#licencia)
+7. [Implementar Reglas - AWS IoT Core](#implementar-reglas---aws-iot-core)
+8. [Contribuciones](#contribuciones)
+9. [Autor](#autor)
+10. [Licencia](#licencia)
 
 
 ---
@@ -47,6 +51,8 @@ Este proyecto tiene como objetivo controlar el acceso a una puerta utilizando un
 El proyecto `RFID Access IoT` permite gestionar el acceso a una puerta utilizando tarjetas RFID. La información de acceso se gestiona a través de un **ESP8266** que se comunica con un **broker MQTT** alojado en una Raspberry Pi y, en futuras versiones, con AWS IoT Core.
 
 Se hace uso de la libreria `umqtt.simple` para la comunicación MQTT en el ESP8266, puede encontrar la documentación [aquí](https://pypi.org/project/micropython-umqtt.simple/).
+
+Puede encontrar documentación acercar de MQTT en este enlace de [AWS](https://aws.amazon.com/es/what-is/mqtt/)
 
 
 
@@ -471,6 +477,8 @@ Para definir los objetos en AWS IoT Core, se debe crear un `Thing` y un `Policy`
 
  > En este ejemplo se conecta una Raspberry Pi a AWS IoT Core y se ejecuta un [script](./rpi/mqtt_connect.py) en Python para publicar mensajes en distintos tópics de MQTT y nos conectamos al cliente MQTT de AWS para ejecutar pruebas.
 
+ > También puede ver este [tutorial](https://www.youtube.com/watch?v=W3XVYiZN610&ab_channel=TodoMaker) para crear un dispositivo en AWS IoT Core.
+
 1. Ingresar a la consola de AWS y buscar el servicio `IoT Core`.
 2. En el menú lateral, seleccionar `All things` y hacer clic en `Object`.
 3. Hacer clic en `Create` y seleccionar `Create thing`.
@@ -854,6 +862,120 @@ Y se ve el mensaje publicado desde el script de la RPI
 
 ![alt text](/assets/image-22.png)
 
+---
+## Implementar Reglas - AWS IoT Core
+
+En AWS IoT Core, las reglas permiten procesar mensajes MQTT y tomar acciones en función de los datos recibidos. En este caso vamos a hacer un ejemplo de definición de una regla para invocar una función Lambda.
+
+### Creación de una Función Lambda
+
+Creamos una función lambda desde la consola de AWS llamada `test_invoked_from_iot_core` y escogemos las opciones que se muestran en la imagen  
+
+![alt text](/assets/image-23.png)
+
+
+El contenido de la función lambda es el siguiente:
+
+```js
+export const handler = async (event, context) => {
+  const { uid, type  } = event;
+
+  if (!uid || !type ) {
+    console.log("Invalid input, id and tipo are required");
+    return {
+      statusCode: 400,
+      body: JSON.stringify({ message: "Invalid input, id and tipo are required" }),
+    };
+  }
+    
+  console.log(uid);
+  console.log(type);
+  
+  const response = {
+    statusCode: 200,
+    body: JSON.stringify('Success'),
+  };
+  return response;
+}
+```
+
+![alt text](assets/image-25.png)
+
+
+> Este ejemplo unicamente muestra en la consola el UID y el tipo de la tarjeta RFID que se recibe en el mensaje. Esto se visualizará por medio de CloudWatch.
+
+Definimos el código de la lambda para recibir el mensaje proveniente del topic `+/rfid/open` y dentro de esta publicación vamos a recibir en el contenido del mensaje el UID de la tarjeta RFID y el tipo de tarjeta. y tendrá la estructura de la siguiente manera:
+
+```json
+{
+  "uid": "0x1234567890",
+  "type": "0x01"
+}
+```
+
+ > El comodin `+` se utiliza para recibir mensajes de cualquier tópico que termine en `/rfid/open`. Esto nos ayuda a que el sistema sea manenible a medida que se agregan más dispositivos. Recuerde que la primera parte del tópico es el nombre del dispositivo, y este deberia ser único para cada dispositivo.
+
+Desde el cliente MQTT de AWS IoT Core se publica un mensaje en el tópico `thing/rfid/open` enviando el mensaje con el UID y el tipo de la tarjeta RFID.
+
+![alt text](/assets/image-24.png)
+
+#### Creación de una Regla
+
+Para crear una regla desde la consola de AWS IoT Core, se selecciona en `Rules` desde el menu de Message Routing, y se hace clic en `Create`. Se define el nombre de la regla y la descripción.
+
+![alt text](/assets/image-26.png)
+
+En la definición de la sentencia SQL se seleccion la versión SQL `2016-03-23` y se define la sentencia SQL para filtrar los mensajes que se reciben en el tópico `+/rfid/open y que tengan el contenido del mensaje con el UID y el tipo de la tarjeta RFID.
+
+```sql
+SELECT * FROM '+/rfid/open' WHERE uid <> NULL AND type <> NULL
+```
+
+> Si quiere más información sobre la sentencia SQL puede ver la documentación [aquí]()
+
+![alt text](/assets/image-27.png)
+
+
+Luego se selecciona las acciones que va a realizar al invocar esta regla
+
+![alt text](/assets/image-28.png)
+
+Aqui se define: 
+ - El servicio que se va a llamar, este caso una función lambda 
+ - La función lambda que se va a invocar que corresponde a `test_invoked_from_iot_core`.
+ - La versión de la función lambda, por defecto se selecciona la última versión.
+
+
+> Se pueden definir más de una acción al ejecturar la regla
+
+Asi mismo se puede definir una acción de error, en el caso de que la regla falle.
+
+Por último se muestra un resumen de la regla, en esta se valida que todas las opciones sea correcta, luego de esto se hace clic en `Create`.
+
+![alt text](/assets/image-29.png)
+
+#### Ejecución de la Regla
+
+Se publica un mensaje en el tópico `thing/rfid/open` con el contenido del mensaje con el UID y el tipo de la tarjeta RFID.
+
+![alt text](/assets/image-30.png)
+
+En los registros de CloudWatch se visualiza el mensaje que se recibe en la función lambda.
+
+![alt text](/assets/image-31.png)
+
+
+Se puede ver que el mensaje se recibe correctamente y se visualiza en la consola de CloudWatch.
+
+Ahora se publica un mensaje en el tópico `thing/rfid/open` con el contenido de UID  y type vacio.
+
+![alt text](/assets/image-32.png)
+
+Se visualiza en los registros de CloudWatch que el mensaje se imprime un mensaje de error.
+
+![alt text](/assets/image-33.png)
+
+Si no se envía el mensaje con el UID y el tipo de la tarjeta RFID, la función lambda no se ejecutará.
 
 
 ---
