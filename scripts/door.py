@@ -13,12 +13,15 @@ class Door:
   Args:
     mqtt_server (str): Dirección del servidor MQTT.
     thing_name (str): Nombre del dispositivo IoT e ID del cliente MQTT.
+    thing_group (str): Grupo al que pertenece el dispositivo.
+    thing_key (str): Clave del dispositivo.
     servo_pin (int, optional): Número de pin del servo. Por defecto es 14.
     led_pin (int, optional): Número de pin del LED. Por defecto es 16.
   """
   def __init__(self, 
     mqtt_server,
     thing_name,
+    thing_group,
     thing_key,
     ssl=True,
     servo_pin=14,
@@ -35,6 +38,7 @@ class Door:
     """
     self.mqtt_server = mqtt_server
     self.thing_name = f"{thing_name}_door"
+    self.thing_group = f"{thing_group}_group"
     self.thing_key = thing_key
     self.ssl = ssl
     self.servo = Servo(pin=servo_pin)
@@ -49,10 +53,10 @@ class Door:
       }
     }
     self.topics = {
-      "open": f"{self.thing_name}/door/open".encode(),
-      "close": f"{self.thing_name}/door/close".encode(),
-      "lock": f"{self.thing_name}/door/lock".encode(),
-      "unlock": f"{self.thing_name}/door/unlock".encode(),
+      "open": f"{self.thing_name}/{self.thing_group}/door/open".encode(),
+      "close": f"{self.thing_name}/{self.thing_group}/door/close".encode(),
+      "lock": f"{self.thing_name}/{self.thing_group}/door/lock".encode(),
+      "unlock": f"{self.thing_name}/{self.thing_group}/door/unlock".encode(),
       # ! Posible bug en el nombre del tema cuando se codifica por el $
       "shadow": "$aws/things/"+self.thing_name+"/shadow/update/delta"
     }

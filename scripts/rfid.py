@@ -1,6 +1,7 @@
 from machine import Pin, SoftSPI, reset
 from time import sleep
 from umqtt.simple import MQTTClient
+import ubinascii
 import mfrc522
 import ujson
 import os
@@ -9,6 +10,7 @@ class Rfid:
   def __init__(self,
     mqtt_server,
     thing_name,
+    thing_group,
     thing_key,
     ssl=True,
     led_pin=16,
@@ -47,6 +49,7 @@ class Rfid:
     }
     # Configuración del cliente MQTT
     self.mqtt_server = mqtt_server
+    self.thing_group = f"{thing_group}_group"
     self.thing_name = f"{thing_name}_rfid"
     # Configuración con lector RFID
     self.spi = SoftSPI(baudrate=100000, polarity=0, phase=0, sck=self.sck, mosi=self.mosi, miso=self.miso)
@@ -54,9 +57,15 @@ class Rfid:
     self.rdr = mfrc522.MFRC522(self.spi, gpioRst=4, gpioCs=5)
     # Configuración de los temas MQTT - Suscripcion
     self.topics = {
-      "status": f"{thing_name}/rfid/status".encode(),
+      "status": f"{self.thing_name}/{self.thing_group}/rfid/status".encode(),
       # ! Posible bug en el nombre del tema cuando se codifica por el $
       "shadow": "$aws/things/"+self.thing_name+"/shadow/update/delta"
+    }
+    # Publicaciones
+    self.publish = {
+      "open": f"{self.thing_name}/{self.thing_group}/rfid/open".encode(),
+      "remove": f"{self.thing_name}/{self.thing_group}/rfid/remove".encode(),
+      "update": f"{self.thing_name}/{self.thing_group}/rfid/update".encode(),
     }
     self.client = self.connect_and_subscribe()
 
@@ -69,12 +78,61 @@ class Rfid:
       msg (bytes): El contenido del mensaje MQTT.
     """
     print((topic, msg))
+    try:
+      message = ujson.loads(msg)
+    except:
+      print('Mensaje no válido')
+      return
+
+    print('Contenido:', message)
+    if not self.validate_key(message["key"]):
+      print('Clave incorrecta')
+      return
+
     if topic == self.topics["status"]:
-      new_state = msg.decode()
-      if new_state in ["locked", "ready", "remove", "update"]:
-        print(f'Cambio de estado a {new_state}')
-        self.state = new_state
+      self.handle_status(message["state"])
+    elif topic == self.topics["shadow"]:
+      self.handle_shadow(msg)
+
+
+  def validate_key(self, key):
+    """
+    Valida la clave del dispositivo.
+
+    Args:
+      key (str): Clave del dispositivo.
+
+    Returns:
+      bool: True si la clave es válida, False en caso contrario.
+    """
+    return key == self.thing_key
+
+  def handle_status(self, state):
+    """
+    Maneja el cambio de estado del dispositivo.
+
+    Args:
+      state (str): Nuevo estado del dispositivo.
+    """
+    if state in ["locked", "ready", "remove", "update"]:
+        print(f'Cambio de estado a {state}')
+        self.state = state
         self.update_led()
+
+  def handle_shadow(self, msg):
+    """
+    Maneja el mensaje de sombra recibido.
+
+    Args:
+      msg (bytes): Contenido del mensaje de sombra.
+    """
+    message = ujson.loads(msg)
+    print('Mensaje de sombra:', message)
+    if message['state']['reported']['status']:
+      self.state['state']['reported']['status'] = message['state']['reported']['status']
+
+    if message['state']['reported']['led']:
+      self.state['state']['reported']['led'] = message['state']['reported']['led']
 
 
   def update_led(self):
@@ -114,20 +172,6 @@ class Rfid:
     sleep(5)
     reset()
 
-
-  def validate_key(self, key):
-    """
-    Valida la clave del dispositivo.
-
-    Args:
-      key (str): Clave del dispositivo.
-
-    Returns:
-      bool: True si la clave es válida, False en caso contrario.
-    """
-    return key == self.thing_key
-
-  
 
   def read_cert(self, filename):        
     """
@@ -176,28 +220,34 @@ class Rfid:
     """
     Verifica las tarjetas RFID y maneja las operaciones según el estado.
     """
-    (stat, tag_type) = self.rdr.request(self.rdr.REQIDL)
-    if stat == self.rdr.OK:
-      (stat, uid) = self.rdr.anticoll()
+    try:
+      (stat, tag_type) = self.rdr.request(self.rdr.REQIDL)
       if stat == self.rdr.OK:
-        uid_hex = ''.join(['{:02X}'.format(x) for x in uid])
-        message = ujson.dumps({
-            "type": "0x%02x" % tag_type,
-            "uid": uid_hex,
-            "key": self.thing_key
-        })
-        # print(f'Tarjeta detectada: {message}')
-        if self.state == "ready":
-          print(f'Verificando tarjeta {uid_hex}')
-          self.client.publish(b'thing/rfid/open', message)
-        elif self.state == "remove":
-          print(f'Eliminando Tarjeta {uid_hex}')
-          self.client.publish(b'thing/rfid/remove', message)
-        elif self.state == "update":
-          print(f'Añadiendo Tarjeta {uid_hex}')
-          self.client.publish(b'thing/rfid/update', message)
-        self.led_blink(3, 0.5)
-        self.led.value(1)
+        (stat, uid) = self.rdr.anticoll()
+        if stat == self.rdr.OK:
+          uid_hex = ''.join(['{:02X}'.format(x) for x in uid])
+          message = ujson.dumps({
+              "thing": self.thing_name,
+              "group": self.thing_group,
+              "type": "0x%02x" % tag_type,
+              "uid": uid_hex,
+              "key": self.thing_key
+          })
+          # print(f'Tarjeta detectada: {message}')
+          if self.state == "ready":
+            print(f'Verificando tarjeta {uid_hex}')
+            self.client.publish(self.publish["open"], message)
+          elif self.state == "remove":
+            print(f'Eliminando Tarjeta {uid_hex}')
+            self.client.publish(self.publish["remove"], message)
+          elif self.state == "update":
+            print(f'Añadiendo Tarjeta {uid_hex}')
+            self.client.publish(self.publish["update"], message)
+          self.led_blink(3, 0.5)
+          self.led.value(1)
+    except Exception as e:
+      print(f'Error al leer tarjeta: {e}')
+      self.restart_and_reconnect()
 
   def listen(self):
     """
