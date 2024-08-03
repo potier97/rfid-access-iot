@@ -3,15 +3,23 @@ from time import sleep
 from umqtt.simple import MQTTClient
 import mfrc522
 import ujson
+import os
 
 class Rfid:
-  def __init__(self, mqtt_server, client_id, thing_name, led_pin=16, sck_pin=14, mosi_pin=13, miso_pin=12):
+  def __init__(self,
+    mqtt_server,
+    thing_name,
+    thing_key,
+    ssl=True,
+    led_pin=16,
+    sck_pin=14,
+    mosi_pin=13,
+    miso_pin=12):
     """
     Inicializa una instancia de la clase Rfid.
 
     Args:
       mqtt_server (str): Dirección del servidor MQTT.
-      client_id (str): ID del cliente MQTT.
       thing_name (str): Nombre del dispositivo IoT.
       led (int, optional): Número de pin del LED. Por defecto es 16.
       sck (int, optional): Número de pin del reloj SPI. Por defecto es 14.
@@ -20,14 +28,26 @@ class Rfid:
     """
     # Inicializa el LED
     self.led = Pin(led_pin, Pin.OUT)
+    self.ssl = ssl
+    # Key del dispositivo
+    self.thing_key = thing_key
     # Configuración del lector RFID
     self.sck = Pin(sck_pin, Pin.OUT)
     self.mosi = Pin(mosi_pin, Pin.OUT)
     self.miso = Pin(miso_pin, Pin.IN)
+    # Estado de la rfid
+    self.state = "locked"  # Otros estados: "ready", "remove", "update"
+    self.state = {
+      "state": {
+        "reported": {
+          "status": 'locked',
+          "led": 1
+        }
+      }
+    }
     # Configuración del cliente MQTT
     self.mqtt_server = mqtt_server
-    self.client_id = client_id
-    self.thing_name = thing_name
+    self.thing_name = f"{thing_name}_rfid"
     # Configuración con lector RFID
     self.spi = SoftSPI(baudrate=100000, polarity=0, phase=0, sck=self.sck, mosi=self.mosi, miso=self.miso)
     self.spi.init()
@@ -35,11 +55,10 @@ class Rfid:
     # Configuración de los temas MQTT - Suscripcion
     self.topics = {
       "status": f"{thing_name}/rfid/status".encode(),
+      # ! Posible bug en el nombre del tema cuando se codifica por el $
+      "shadow": "$aws/things/"+self.thing_name+"/shadow/update/delta"
     }
     self.client = self.connect_and_subscribe()
-    # Estado de la rfid
-    self.state = "locked"  # Otros estados: "ready", "remove", "update"
-
 
   def sub_cb(self, topic, msg):
     """
@@ -95,18 +114,55 @@ class Rfid:
     sleep(5)
     reset()
 
+
+  def validate_key(self, key):
+    """
+    Valida la clave del dispositivo.
+
+    Args:
+      key (str): Clave del dispositivo.
+
+    Returns:
+      bool: True si la clave es válida, False en caso contrario.
+    """
+    return key == self.thing_key
+
+  
+
+  def read_cert(self, filename):        
+    """
+    Lee un archivo de certificado y lo decodifica.
+    Args:
+      filename (str): Nombre del archivo de certificado.
+    Returns:
+      bytes: Contenido del archivo decodificado.
+    """
+    with open(filename, 'r') as f:
+      text = f.read().strip()
+      split_text = text.split('\n')
+      base64_text = ''.join(split_text[1:-1])
+      return ubinascii.a2b_base64(base64_text)
+
  
   def connect_and_subscribe(self):
     """
     Conecta al servidor MQTT y se suscribe a los temas necesarios.
     """
-    # self.client.set_callback(self.sub_cb)
-    client = MQTTClient(self.client_id, self.mqtt_server, keepalive=60)
-    client.set_callback(self.sub_cb)
+    private_key = "private.pem.key"
+    private_cert = "cert.pem.crt"
+    key = self.read_cert(private_key)
+    cert = self.read_cert(private_cert)
+    sslp = {
+      'key': key,
+      'cert': cert,
+      'server_side': False
+    }
+    print('Conectando al broker MQTT...')
+    client = MQTTClient(client_id=self.thing_name, server=self.mqtt_server, port=8883, keepalive=1200, ssl=True, ssl_params=sslp) if self.ssl else MQTTClient(self.thing_name, self.mqtt_server, keepalive=60)
     try:
+      client.set_callback(self.sub_cb)
       client.connect()
       print(f'Conectado al broker MQTT {self.mqtt_server}')
-      #self.client.subscribe(b'thing/rfid/status')
       for topic in self.topics.values():
         client.subscribe(topic)
         print(f'Suscrito al tema {topic}')
@@ -127,7 +183,8 @@ class Rfid:
         uid_hex = ''.join(['{:02X}'.format(x) for x in uid])
         message = ujson.dumps({
             "type": "0x%02x" % tag_type,
-            "uid": uid_hex
+            "uid": uid_hex,
+            "key": self.thing_key
         })
         # print(f'Tarjeta detectada: {message}')
         if self.state == "ready":
