@@ -1,8 +1,10 @@
+import ujson
+import os
 from time import sleep
 from machine import Pin, reset
-from umqtt.simple import MQTTClient
 from servo import Servo
 import ubinascii
+from umqtt.simple import MQTTClient
 
 class Door:
   """
@@ -10,34 +12,49 @@ class Door:
 
   Args:
     mqtt_server (str): Dirección del servidor MQTT.
-    client_id (str): ID del cliente MQTT.
-    thing_name (str): Nombre del dispositivo IoT.
+    thing_name (str): Nombre del dispositivo IoT e ID del cliente MQTT.
     servo_pin (int, optional): Número de pin del servo. Por defecto es 14.
     led_pin (int, optional): Número de pin del LED. Por defecto es 16.
   """
-
-  def __init__(self, mqtt_server, client_id, thing_name, servo_pin=14, led_pin=16):
+  def __init__(self, 
+    mqtt_server,
+    thing_name,
+    thing_key,
+    ssl=True,
+    servo_pin=14,
+    led_pin=16):
     """
     Inicializa una instancia de la clase Door.
 
     Args:
       mqtt_server (str): Dirección del servidor MQTT.
-      client_id (str): ID del cliente MQTT.
-      thing_name (str): Nombre del dispositivo IoT.
+      thing_name (str): Nombre del dispositivo IoT e ID del cliente MQTT.
+      ssl (bool, optional): Indica si se debe usar SSL. Por defecto es True.
       servo_pin (int, optional): Número de pin del servo. Por defecto es 14.
       led_pin (int, optional): Número de pin del LED. Por defecto es 16.
     """
     self.mqtt_server = mqtt_server
-    self.client_id = client_id
-    self.thing_name = thing_name
+    self.thing_name = f"{thing_name}_door"
+    self.thing_key = thing_key
+    self.ssl = ssl
     self.servo = Servo(pin=servo_pin)
     self.led = Pin(led_pin, Pin.OUT)
     self.locked = False
+    self.state = {
+      "state": {
+        "reported": {
+          "status": 'unlock',
+          "led": 1
+        }
+      }
+    }
     self.topics = {
-      "open": f"{thing_name}/door/open".encode(),
-      "close": f"{thing_name}/door/close".encode(),
-      "lock": f"{thing_name}/door/lock".encode(),
-      "unlock": f"{thing_name}/door/unlock".encode()
+      "open": f"{self.thing_name}/door/open".encode(),
+      "close": f"{self.thing_name}/door/close".encode(),
+      "lock": f"{self.thing_name}/door/lock".encode(),
+      "unlock": f"{self.thing_name}/door/unlock".encode(),
+      # ! Posible bug en el nombre del tema cuando se codifica por el $
+      "shadow": "$aws/things/"+self.thing_name+"/shadow/update/delta"
     }
     self.client = self.connect_and_subscribe()
     self.servo.move(0)
@@ -53,6 +70,17 @@ class Door:
       msg (bytes): El contenido del mensaje MQTT.
     """
     print((topic, msg))
+    try:
+      message = ujson.loads(msg)
+    except:
+      print('Mensaje no válido')
+      return
+
+    print('Contenido:', message)
+    if not self.validate_key(message["key"]):
+      print('Clave incorrecta')
+      return
+
     if topic == self.topics["open"]:
       self.handle_open()
     elif topic == self.topics["close"]:
@@ -61,6 +89,21 @@ class Door:
       self.handle_lock()
     elif topic == self.topics["unlock"]:
       self.handle_unlock()
+    elif topic == self.topics["shadow"]:
+      self.handle_shadow(msg)
+
+
+  def validate_key(self, key):
+    """
+    Valida la clave del dispositivo.
+
+    Args:
+      key (str): Clave del dispositivo.
+
+    Returns:
+      bool: True si la clave es válida, False en caso contrario.
+    """
+    return key == self.thing_key
 
   def handle_open(self):
     """
@@ -70,6 +113,7 @@ class Door:
       print('ESP recibió el mensaje de abrir la puerta')
       self.servoPos = 180
       self.servo.move(180)
+      self.state["state"]["reported"]["status"] = 'open'
 
   def handle_close(self):
     """
@@ -79,6 +123,7 @@ class Door:
       print('ESP recibió el mensaje de cerrar la puerta')
       self.servoPos = 0
       self.servo.move(0)
+      self.state["state"]["reported"]["status"] = 'close'
 
   def handle_lock(self):
     """
@@ -90,6 +135,7 @@ class Door:
       self.servoPos = 0
       self.servo.move(0)
     self.led.value(0)
+    self.state["state"]["reported"]["status"] = 'lock'
 
   def handle_unlock(self):
     """
@@ -98,6 +144,29 @@ class Door:
     print('ESP recibió el mensaje de desbloquear la puerta')
     self.locked = False
     self.led.value(1)
+    self.state["state"]["reported"]["status"] = 'unlock'
+
+  def handle_shadow(self, msg):
+    """
+    Maneja el mensaje de sombra recibido.
+
+    Args:
+      msg (bytes): Contenido del mensaje de sombra.
+    """
+    message = ujson.loads(msg)
+    print('Mensaje de sombra:', message)
+    if message['state']['desired']['status'] == 'open':
+      self.handle_open()
+    elif message['state']['desired']['status'] == 'close':
+      self.handle_close()
+    elif message['state']['desired']['status'] == 'lock':
+      self.handle_lock()
+    elif message['state']['desired']['status'] == 'unlock':
+      self.handle_unlock()
+    
+    #CAMBIO DE ESTADO DE LED
+    if message['state']['desired']['led']:
+      self.led.value(message['state']['desired']['led'])
 
   def restart_and_reconnect(self):
     """
@@ -107,6 +176,20 @@ class Door:
     sleep(5)
     reset()
 
+  def read_cert(self, filename):        
+    """
+    Lee un archivo de certificado y lo decodifica.
+    Args:
+      filename (str): Nombre del archivo de certificado.
+    Returns:
+      bytes: Contenido del archivo decodificado.
+    """
+    with open(filename, 'r') as f:
+      text = f.read().strip()
+      split_text = text.split('\n')
+      base64_text = ''.join(split_text[1:-1])
+      return ubinascii.a2b_base64(base64_text)
+
   def connect_and_subscribe(self):
     """
     Conecta al servidor MQTT y se suscribe a los temas necesarios.
@@ -114,9 +197,19 @@ class Door:
     Returns:
       MQTTClient: Cliente MQTT conectado y suscrito.
     """
-    client = MQTTClient(self.client_id, self.mqtt_server, keepalive=60)
-    client.set_callback(self.sub_cb)
+    private_key = "private.pem.key"
+    private_cert = "cert.pem.crt"
+    key = self.read_cert(private_key)
+    cert = self.read_cert(private_cert)
+    sslp = {
+      'key': key,
+      'cert': cert,
+      'server_side': False
+    }
+    print('Conectando al broker MQTT...')
+    client = MQTTClient(client_id=self.thing_name, server=self.mqtt_server, port=8883, keepalive=1200, ssl=True, ssl_params=sslp) if self.ssl else MQTTClient(self.thing_name, self.mqtt_server, keepalive=60)
     try:
+      client.set_callback(self.sub_cb)
       client.connect()
       print(f'Conectado al broker MQTT {self.mqtt_server}')
       for topic in self.topics.values():

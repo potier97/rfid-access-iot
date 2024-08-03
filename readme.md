@@ -977,6 +977,27 @@ Se visualiza en los registros de CloudWatch que el mensaje se imprime un mensaje
 
 Si no se envía el mensaje con el UID y el tipo de la tarjeta RFID, la función lambda no se ejecutará.
 
+---
+## Conexión de ESP8266 a AWS IoT Core
+
+Para conectar el ESP8266 a AWS IoT Core, se puede orientar en el siguiente [tutorial](https://www.youtube.com/watch?v=DEBmpVPnZb0&t=726s&ab_channel=Shilleh) para conectar un ESP8266 a AWS IoT Core.
+
+Es importante mencionar que la versión del `firmware` del ESP8266 corresponde al `v1.19.1` y lo puede encontrar en el siguiente link [ESP8266 Firmware](https://micropython.org/download/esp8266/).
+
+Para las conexión a AWS IoT Core se debe tener en cuenta que es necesario tener el certificado y la clave privada del dispositivo, recuerde que estos se generan al momento de crear o definir el dispositivo.
+
+ - `certificate.pem.crt`
+ - `private.pem.key`
+
+Estos los puede pasar a la memoria del ESP8266 utilizando `ampy`
+
+```sh
+ampy --port com6 put <ORIGEN-ARCHIVO> certificate.pem.crt
+ampy --port com6 put <ORIGEN-ARCHIVO> private.pem.key
+```
+
+> No hay mecesidad de convertirlos, ya que estos son leidos y son codificados en base64. esto por medio del método `read_cert` de la clase `door.py`. Este lo puede encontrar en el archivo [door.py](./scripts/door.py#L178).
+
 
 ---
 ## Contribuciones

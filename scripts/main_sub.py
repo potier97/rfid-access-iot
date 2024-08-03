@@ -1,14 +1,11 @@
-import ubinascii
-from machine import unique_id
+import os
+import time
 from door import Door
+import config
 
 if __name__ == '__main__':
-  client_id = ubinascii.hexlify(unique_id())
-  # Cambiarlo por la ip del broker
-  mqtt_server = '192.168.1.24'
-  # Cambiarlo por el nombre del dispositivo desplegado
-  thing_name = 'thing'
-  # Se cambia al pin 13 -poder defecto es 14 
-  #servo_pin = 13 # D7 
-  door_controller = Door(mqtt_server, client_id, thing_name)
+  mqtt_server = config.mqtt_server
+  thing_name = config.thing_name
+  thing_key = config.thing_key
+  door_controller = Door(mqtt_server, thing_name, thing_key)
   door_controller.listen()

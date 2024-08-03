@@ -1,0 +1,44 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "iot:Connect",
+      "Resource": "arn:aws:iot:<REGION>:<ACOUNT_ID>:client/<THING_NAME>"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Publish",
+      "Resource": [
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/$aws/things/<THING_NAME>/shadow/update",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/<THING_NAME>/door/open",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/<THING_NAME>/door/close",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/<THING_NAME>/door/lock",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/<THING_NAME>/door/unlock",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:client/<THING_NAME>"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Subscribe",
+      "Resource": [
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/$aws/things/<THING_NAME>/shadow/update/delta",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/<THING_NAME>/door/open",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/<THING_NAME>/door/close",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/<THING_NAME>/door/lock",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topicfilter/<THING_NAME>/door/unlock"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iot:Receive",
+      "Resource": [
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/$aws/things/<THING_NAME>/shadow/update/delta",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/<THING_NAME>/door/open",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/<THING_NAME>/door/close",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/<THING_NAME>/door/lock",
+        "arn:aws:iot:<REGION>:<ACOUNT_ID>:topic/<THING_NAME>/door/unlock"
+      ]
+    }
+  ]
+}
