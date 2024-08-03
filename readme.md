@@ -931,7 +931,7 @@ En la definición de la sentencia SQL se seleccion la versión SQL `2016-03-23` 
 SELECT * FROM '+/rfid/open' WHERE uid <> NULL AND type <> NULL
 ```
 
-> Si quiere más información sobre la sentencia SQL puede ver la documentación [aquí]()
+> Si quiere más información sobre la sentencia SQL puede ver la documentación [aquí](https://docs.aws.amazon.com/iot/latest/developerguide/iot-sql-reference.html)
 
 ![alt text](/assets/image-27.png)
 
@@ -945,8 +945,10 @@ Aqui se define:
  - La función lambda que se va a invocar que corresponde a `test_invoked_from_iot_core`.
  - La versión de la función lambda, por defecto se selecciona la última versión.
 
+> Documentación de como generar una acción con una función lambda [aquí](https://docs.aws.amazon.com/iot/latest/developerguide/lambda-rule-action.html)
 
-> Se pueden definir más de una acción al ejecturar la regla
+> También se pueden definir más de una acción al ejecturar la regla
+
 
 Asi mismo se puede definir una acción de error, en el caso de que la regla falle.
 
