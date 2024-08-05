@@ -117,7 +117,10 @@ class Door:
       print('ESP recibió el mensaje de abrir la puerta')
       self.servoPos = 180
       self.servo.move(180)
-      self.state["state"]["reported"]["status"] = 'open'
+      #self.state["state"]["reported"]["status"] = 'open'
+      sleep(10)
+      self.servoPos = 0
+      self.servo.move(0)
 
   def handle_close(self):
     """

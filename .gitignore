@@ -58,3 +58,25 @@ docs/_build/
 # PyBuilder
 target/
 keys/**
+
+# Terraform
+credentials
+.env
+*.env
+**/.env
+**/*.env
+develop.tfvars
+production.tfvars
+.terraform/*
+.terraform
+*.pem
+**/terraform.tfstate
+**/terraform.tfstate.backup
+**/dev.tfvars
+**/node_modules
+**/package-lock.json
+**/yarn.lock
+**/backend.tf
+.terraform.lock.hcl
+/terraform/certs/**
+**/*.zip

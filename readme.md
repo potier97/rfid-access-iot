@@ -4,9 +4,44 @@
 
 # Rfid Iot Project
 
-Este proyecto tiene como objetivo controlar el acceso a una puerta utilizando un sistema RFID, un ESP8266 y una arquitectura en la nube a través de AWS IoT Core. Inicialmente, el proyecto se configura para conectar con un broker MQTT (Mosquitto) en una Raspberry Pi. Posteriormente, se implementará en la nube de AWS.
+ste proyecto de IoT para control de acceso se centra en el uso de dispositivos RFID con ESP8266 y puertas controladas electrónicamente "Servos", integrados con los servicios de AWS para crear un sistema seguro, escalable y eficiente. Los componentes principales incluyen:
+
+
+ - Dispositivos IoT: Lectoras RFID y controladores de puertas que se comunican con la nube.
+ - AWS IoT Core: Actúa como broker MQTT para la comunicación entre dispositivos.
+ - Funciones Lambda: Ejecutan lógica de negocio, como la validación de accesos y actualizaciones de registros.
+ - DynamoDB: Almacena datos de acceso y registros de dispositivos.
+ - API Gateway: Facilita la integración con aplicaciones externas para enviar y recibir datos.
+
+Los usuarios presentan sus tarjetas RFID, los dispositivos leen la información y envían los datos a la nube, donde se procesan y verifican mediante funciones Lambda. Dependiendo de la validación, se envían comandos para abrir o cerrar puertas, registrar accesos, y enviar notificaciones. Este sistema proporciona un control de acceso eficiente y seguro, aprovechando la infraestructura de AWS.
 
 Este proyecto está inspirado la siguiente publicación de AWS [Aquí](https://aws.amazon.com/es/blogs/iot/using-micropython-to-get-started-with-aws-iot-core/).
+
+
+## Infraestructura
+
+La siguiente imagen muestra la infraestructura del proyecto, en la que se conecta un ESP8266 a un broker MQTT mediante AWS Iot Core. El ESP8266 se encarga de controlar la puerta y el lector RFID, mientras que la Raspberry Pi actúa como broker MQTT y se comunica con AWS IoT Core.
+
+<p align="center">
+  <a href="http://nipoanz.com/" target="blank"><img src="./assets/image-34.png" width="100%" alt="NPA Logo" /></a>
+</p>
+
+Para conocer más de la infraestructura implementada mediate Terraform, puede visitar esta [documentación](./terraform/readme.md).
+
+## TODO
+
+- [x] Implementar la logica para añadir/actualizar tarjetas RFID.
+- [x] Implementar la logica para eliminar tarjetas RFID anteriormente guardadas.
+- [x] Implementar la lógica de control de acceso mediante tarjetas RFID.
+- [x] Implementar las reglas en AWS IoT Core para invocar las funciones Lambda.
+- [x] Implementar base de datos en Dynamo para persistir la información de las tarjetas RFID.
+- [x] Implementar infraestructura en AWS paa mejorar mantenibilidad y escalabilidad.
+- [ ] Implementar la lógica de cambio de estado del lector RFID.
+- [ ] Implementar apis para la gestión de tarjetas RFID desde un portal web.
+- [ ] Implementar entidad de usuarios para asocial tarjetas RFID registradas.
+- [ ] Mejorar procesos de acceso mediante maquinas de estado.
+- [ ] Guardar información de acceso y eventos en la base de datos.
+
 
 
 ## Instalar
