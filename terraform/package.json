@@ -1,0 +1,21 @@
+{
+    "name": "iot-infra",
+    "version": "0.1.0",
+    "description": "Declaración de la infra desplegada en los servicios de AWS",
+    "license": "MIT",
+    "scripts": {
+        "start": "SET AWS_PROFILE=profile2024&& terraform init",
+        "validate": "SET AWS_PROFILE=profile2024&& terraform validate",
+        "login": "terraform login",
+        "get:modules": "SET AWS_PROFILE=profile2024&& terraform get --update",
+        "pull": "SET AWS_PROFILE=profile2024&& terraform state pull",
+        "terra:plan": "SET AWS_PROFILE=profile2024&& terraform plan -var-file dev.tfvars",
+        "terra:apply": "SET AWS_PROFILE=profile2024&& terraform apply -var-file dev.tfvars",
+        "terra:destroy": "SET AWS_PROFILE=profile2024&& terraform destroy -var-file dev.tfvars",
+        "terra:import": "SET AWS_PROFILE=profile2024&& terraform import -var-file dev.tfvars"
+    },
+    "devDependencies": {},
+    "main": "compress.js",
+    "keywords": [],
+    "author": ""
+}
