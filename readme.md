@@ -1035,6 +1035,7 @@ ampy --port com6 put <ORIGEN-ARCHIVO> private.pem.key
 
 > No hay mecesidad de convertirlos, ya que estos son leidos y son codificados en base64. esto por medio del método `read_cert` de la clase `door.py`. Este lo puede encontrar en el archivo [door.py](./scripts/door.py#L178).
 
+> Puede guiarse de este [tutorial](https://medium.com/dev-jam/tutorial-part-2-aws-iot-rules-lambda-function-dynamodb-40a7d4ea35b9) para realizar la conexión del ESP8266 a AWS IoT Core, así mismo este ofrece una definición de las reglas para la invocación de funciones lambda de acuerdo a comportamientos esperados.
 
 ---
 ## Contribuciones
